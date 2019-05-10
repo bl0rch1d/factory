@@ -17,7 +17,6 @@
 
 class Factory
   def self.new(*members, &block)
-
     # --- Members validation ---
     raise ArgumentError if members.empty?
 
@@ -25,13 +24,11 @@ class Factory
     @identifier = members.shift if members.first.instance_of? String
 
     klass = Class.new do
-
       # --- Struct setup ---
       define_method :initialize do |*args|
-        raise ArgumentError, "factory size differs" if members.size < args.size
+        raise ArgumentError, 'factory size differs' if members.size < args.size
 
         members.each_with_index do |member, i|
-          
           # Set Struct fields
           instance_variable_set "@#{member}", args[i]
 
@@ -44,18 +41,15 @@ class Factory
           define_singleton_method "#{member}=" do |val|
             instance_variable_set "@#{member}", val
           end
-
         end
-
       end
-
 
       # Bracket Get method
       define_method :[] do |member|
         accessor_valid? member
 
         return instance_variable_get instance_variables[member] if member.instance_of? Integer
-        
+
         instance_variable_get "@#{member}"
       end
 
@@ -64,41 +58,40 @@ class Factory
         accessor_valid? member
 
         return instance_variable_set instance_variables[member], val if member.instance_of? Integer
-        
+
         instance_variable_set "@#{member}", val
       end
 
-      
       # --- Struct methods ---
-      
+
       define_method :members do
         members
       end
-      
-      def == other
+
+      def ==(other)
         self.class == other.class && instance_variables.all? do |member|
           instance_variable_get(member) == other.instance_variable_get(member)
         end
       end
       alias_method :eql?, :==
 
-      def each &block
+      def each(&block)
         return to_enum unless block_given?
 
-        to_a.each &block 
+        to_a.each &block
       end
 
-      def each_pair &block
+      def each_pair(&block)
         return to_enum(method = :each_pair) unless block_given?
 
         to_h.each_pair &block
       end
 
-      def dig key, *keys
+      def dig(key, *keys)
         return nil unless members.include? key
 
         return self[key] if keys.empty?
-      
+
         self[key].dig *keys
       end
 
@@ -107,7 +100,7 @@ class Factory
       end
       alias_method :length, :size
 
-      def select &block
+      def select(&block)
         to_a.select &block
       end
 
@@ -120,16 +113,15 @@ class Factory
         members.each_with_object({}) { |v, h| h[v] = instance_variable_get "@#{v}" }
       end
 
-      def values_at *i
+      def values_at(*i)
         to_a.values_at *i
       end
 
-
       private
 
-      def accessor_valid? accessor
+      def accessor_valid?(accessor)
         if accessor.instance_of?(Integer)
-          
+
           if (instance_variables.size - 1) < accessor
             raise IndexError, "offset #{accessor} is too large for factory(size:#{instance_variables.size})"
           end
@@ -137,22 +129,20 @@ class Factory
           true
 
         elsif accessor.instance_of?(String) || accessor.instance_of?(Symbol)
-          
-          if !instance_variables.include? "@#{accessor}".to_sym
+
+          unless instance_variables.include? "@#{accessor}".to_sym
             raise NameError, "no member #{accessor} in factory"
           end
 
           true
         end
       end
-
     end
 
-    
     klass.class_eval &block if block_given?
-    
+
     const_set(@identifier, klass) unless @identifier.nil?
-    
+
     klass
   end
 end
