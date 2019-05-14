@@ -3,4 +3,6 @@ test.rb
 meta.rb
 tempCodeRunnerFile.rb
 
+*.swp
+
 /.vscode/

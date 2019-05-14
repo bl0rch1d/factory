@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # * Here you must define your `Factory` class.
 # * Each instance of Factory could be stored into variable. The name of this variable is the name of created Class
 # * Arguments of creatable Factory instance are fields/attributes of created class
@@ -14,11 +16,19 @@
 # - to_a
 # - values_at
 # - ==, eql?
-
+# ----------------------------------------------------------------------------
 class Factory
   def self.new(*members, &block)
     # --- Members validation ---
     raise ArgumentError if members.empty?
+
+    members.each do |member|
+      next if member.instance_of?(Symbol)
+
+      next if member.instance_of?(String) && !member.empty? && member.match(/\A[A-Z]/)
+
+      raise ArgumentError, "identifier #{member} needs to be a constant"
+    end
 
     # Classname validation and setup
     @identifier = members.shift if members.first.instance_of? String
@@ -44,7 +54,7 @@ class Factory
         end
       end
 
-      # Bracket Get method
+      # Bracket GET method
       define_method :[] do |member|
         accessor_valid? member
 
@@ -78,13 +88,13 @@ class Factory
       def each(&block)
         return to_enum unless block_given?
 
-        to_a.each &block
+        to_a.each(&block)
       end
 
       def each_pair(&block)
-        return to_enum(method = :each_pair) unless block_given?
+        return to_enum(method: :each_pair) unless block_given?
 
-        to_h.each_pair &block
+        to_h.each_pair(&block)
       end
 
       def dig(key, *keys)
@@ -92,7 +102,7 @@ class Factory
 
         return self[key] if keys.empty?
 
-        self[key].dig *keys
+        self[key].dig(*keys)
       end
 
       def size
@@ -101,7 +111,7 @@ class Factory
       alias_method :length, :size
 
       def select(&block)
-        to_a.select &block
+        to_a.select(&block)
       end
 
       def to_a
@@ -113,35 +123,34 @@ class Factory
         members.each_with_object({}) { |v, h| h[v] = instance_variable_get "@#{v}" }
       end
 
-      def values_at(*i)
-        to_a.values_at *i
+      def values_at(*ids)
+        to_a.values_at(*ids)
       end
 
       private
 
       def accessor_valid?(accessor)
-        if accessor.instance_of?(Integer)
-
+        case accessor
+        when Integer
           if (instance_variables.size - 1) < accessor
             raise IndexError, "offset #{accessor} is too large for factory(size:#{instance_variables.size})"
           end
 
           true
-
-        elsif accessor.instance_of?(String) || accessor.instance_of?(Symbol)
-
+        when String, Symbol
           unless instance_variables.include? "@#{accessor}".to_sym
             raise NameError, "no member #{accessor} in factory"
           end
 
           true
+        else raise TypeError, "no implicit convention of #{accessor.class} into Integer"
         end
       end
     end
 
-    klass.class_eval &block if block_given?
+    klass.class_eval(&block) if block_given?
 
-    const_set(@identifier, klass) unless @identifier.nil?
+    const_set(@identifier, klass) if @identifier
 
     klass
   end
