@@ -138,7 +138,7 @@ class Factory
 
           true
         when String, Symbol
-          unless instance_variables.include? "@#{accessor}".to_sym
+          if !instance_variables.include? "@#{accessor}".to_sym
             raise NameError, "no member #{accessor} in factory"
           end
 
