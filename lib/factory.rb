@@ -56,18 +56,22 @@ class Factory
 
       # Bracket GET method
       define_method :[] do |member|
-        accessor_valid? member
+        valid? member
 
-        return instance_variable_get instance_variables[member] if member.instance_of? Integer
+        if member.instance_of? Integer
+          return instance_variable_get instance_variables[member]
+        end
 
         instance_variable_get "@#{member}"
       end
 
       # Bracket SET method
       define_method :[]= do |member, val|
-        accessor_valid? member
+        valid? member
 
-        return instance_variable_set instance_variables[member], val if member.instance_of? Integer
+        if member.instance_of? Integer
+          return instance_variable_set instance_variables[member], val
+        end
 
         instance_variable_set "@#{member}", val
       end
@@ -120,7 +124,9 @@ class Factory
       alias_method :values, :to_a
 
       def to_h
-        members.each_with_object({}) { |v, h| h[v] = instance_variable_get "@#{v}" }
+        members.each_with_object({}) do |v, h|
+          h[v] = instance_variable_get "@#{v}"
+        end
       end
 
       def values_at(*ids)
@@ -129,21 +135,23 @@ class Factory
 
       private
 
-      def accessor_valid?(accessor)
+      def valid?(accessor)
         case accessor
         when Integer
           if (instance_variables.size - 1) < accessor
-            raise IndexError, "offset #{accessor} is too large for factory(size:#{instance_variables.size})"
+            raise IndexError, "offset #{accessor} is too large \
+                              for factory(size:#{instance_variables.size})"
           end
 
           true
         when String, Symbol
-          if !instance_variables.include? "@#{accessor}".to_sym
+          unless instance_variables.include? "@#{accessor}".to_sym
             raise NameError, "no member #{accessor} in factory"
           end
 
           true
-        else raise TypeError, "no implicit convention of #{accessor.class} into Integer"
+        else raise TypeError, "no implicit convention of \
+                              #{accessor.class} into Integer"
         end
       end
     end
