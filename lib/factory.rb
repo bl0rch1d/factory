@@ -19,64 +19,59 @@
 # ----------------------------------------------------------------------------
 class Factory
   def self.new(*members, &block)
-    # --- Members validation ---
     raise ArgumentError if members.empty?
 
     members.each do |member|
       next if member.instance_of?(Symbol)
 
-      next if member.instance_of?(String) && !member.empty? && member.match(/\A[A-Z]/)
+      if member.instance_of?(String) && \
+         !member.empty? && \
+         member.match(/\A[A-Z]/)
+
+        next
+      end
 
       raise ArgumentError, "identifier #{member} needs to be a constant"
     end
 
-    # Classname validation and setup
     @identifier = members.shift if members.first.instance_of? String
 
     klass = Class.new do
-      # --- Struct setup ---
       define_method :initialize do |*args|
         raise ArgumentError, 'factory size differs' if members.size < args.size
 
         members.each_with_index do |member, i|
-          # Set Struct fields
           instance_variable_set "@#{member}", args[i]
 
-          # Set read accessor for each field
           define_singleton_method member.to_s do
             instance_variable_get "@#{member}"
           end
 
-          # Set write accessor for each field
           define_singleton_method "#{member}=" do |val|
             instance_variable_set "@#{member}", val
           end
         end
       end
 
-      # Bracket GET method
-      define_method :[] do |member|
-        valid? member
+      define_method :[] do |accessor|
+        check accessor
 
-        if member.instance_of? Integer
-          return instance_variable_get instance_variables[member]
+        if accessor.instance_of? Integer
+          return instance_variable_get instance_variables[accessor]
         end
 
-        instance_variable_get "@#{member}"
+        instance_variable_get "@#{accessor}"
       end
 
-      # Bracket SET method
-      define_method :[]= do |member, val|
-        valid? member
+      define_method :[]= do |accessor, val|
+        check accessor
 
-        if member.instance_of? Integer
-          return instance_variable_set instance_variables[member], val
+        if accessor.instance_of? Integer
+          return instance_variable_set instance_variables[accessor], val
         end
 
-        instance_variable_set "@#{member}", val
+        instance_variable_set "@#{accessor}", val
       end
-
-      # --- Struct methods ---
 
       define_method :members do
         members
@@ -135,21 +130,21 @@ class Factory
 
       private
 
-      def valid?(accessor)
+      def check(accessor)
         case accessor
         when Integer
+
           if (instance_variables.size - 1) < accessor
             raise IndexError, "offset #{accessor} is too large \
                               for factory(size:#{instance_variables.size})"
           end
 
-          true
         when String, Symbol
+
           unless instance_variables.include? "@#{accessor}".to_sym
-            raise NameError, "no member #{accessor} in factory"
+            raise NameError, "no accessor #{accessor} in factory"
           end
 
-          true
         else raise TypeError, "no implicit convention of \
                               #{accessor.class} into Integer"
         end
