@@ -34,9 +34,17 @@ class Factory
       raise ArgumentError, "identifier #{member} needs to be a constant"
     end
 
-    @identifier = fields.shift if fields.first.instance_of? String
+    identifier, *rest = fields
 
-    klass = Class.new do
+    if identifier.instance_of? String
+      return const_set(identifier, create_class(*rest, &block))
+    end
+
+    create_class(*fields, &block)
+  end
+
+  def self.create_class(*fields, &block)
+    Class.new do
       attr_accessor(*fields)
 
       define_method :initialize do |*args|
@@ -140,12 +148,8 @@ class Factory
                               #{accessor.class} into Integer"
         end
       end
+
+      class_eval(&block) if block_given?
     end
-
-    klass.class_eval(&block) if block_given?
-
-    const_set(@identifier, klass) if @identifier
-
-    klass
   end
 end
