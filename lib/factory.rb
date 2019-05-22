@@ -18,15 +18,15 @@
 # - ==, eql?
 # ----------------------------------------------------------------------------
 class Factory
-  def self.new(*members, &block)
-    raise ArgumentError if members.empty?
+  def self.new(*fields, &block)
+    raise ArgumentError if fields.empty?
 
-    members.each do |member|
-      next if member.instance_of?(Symbol)
+    fields.each do |field|
+      next if field.instance_of?(Symbol)
 
-      if member.instance_of?(String) && \
-         !member.empty? && \
-         member.match(/\A[A-Z]/)
+      if field.instance_of?(String) && \
+         !field.empty? && \
+         field.match(/\A[A-Z]/)
 
         next
       end
@@ -34,22 +34,16 @@ class Factory
       raise ArgumentError, "identifier #{member} needs to be a constant"
     end
 
-    @identifier = members.shift if members.first.instance_of? String
+    @identifier = fields.shift if fields.first.instance_of? String
 
     klass = Class.new do
+      attr_accessor(*fields)
+
       define_method :initialize do |*args|
-        raise ArgumentError, 'factory size differs' if members.size < args.size
+        raise ArgumentError, 'factory size differs' if fields.size < args.size
 
-        members.each_with_index do |member, i|
-          instance_variable_set "@#{member}", args[i]
-
-          define_singleton_method member.to_s do
-            instance_variable_get "@#{member}"
-          end
-
-          define_singleton_method "#{member}=" do |val|
-            instance_variable_set "@#{member}", val
-          end
+        fields.each_with_index do |field, i|
+          instance_variable_set "@#{field}", args[i]
         end
       end
 
@@ -63,25 +57,24 @@ class Factory
         instance_variable_get "@#{accessor}"
       end
 
-      define_method :[]= do |accessor, val|
+      define_method :[]= do |accessor, value|
         check accessor
 
         if accessor.instance_of? Integer
-          return instance_variable_set instance_variables[accessor], val
+          return instance_variable_set instance_variables[accessor], value
         end
 
-        instance_variable_set "@#{accessor}", val
+        instance_variable_set "@#{accessor}", value
       end
 
       define_method :members do
-        members
+        fields
       end
 
       def ==(other)
-        self.class == other.class && instance_variables.all? do |member|
-          instance_variable_get(member) == other.instance_variable_get(member)
-        end
+        self.class == other.class && values == other.values
       end
+
       alias_method :eql?, :==
 
       def each(&block)
@@ -114,14 +107,12 @@ class Factory
       end
 
       def to_a
-        instance_variables.map { |x| instance_variable_get x }
+        instance_variables.map { |field| instance_variable_get field }
       end
       alias_method :values, :to_a
 
       def to_h
-        members.each_with_object({}) do |v, h|
-          h[v] = instance_variable_get "@#{v}"
-        end
+        members.zip(values).to_h
       end
 
       def values_at(*ids)
