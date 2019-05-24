@@ -85,7 +85,7 @@ class Factory
       end
 
       def dig(*keys)
-        keys.inject(self) { |res, key| res[key] if res }
+        keys.inject(self) { |values, key| values[key] if values }
       end
 
       def size
