@@ -19,28 +19,23 @@
 # ----------------------------------------------------------------------------
 class Factory
   def self.new(*fields, &block)
-    raise ArgumentError if fields.empty?
-
-    fields.each do |field|
-      next if field.instance_of?(Symbol)
-
-      if field.instance_of?(String) && \
-         !field.empty? && \
-         field.match(/\A[A-Z]/)
-
-        next
-      end
-
-      raise ArgumentError, "identifier #{member} needs to be a constant"
-    end
-
     identifier, *rest = fields
 
-    if identifier.instance_of? String
+    if constant?(identifier)
       return const_set(identifier, create_class(*rest, &block))
     end
 
+    if identifier.is_a? String
+      raise ArgumentError, "identifier #{identifier} needs to be a constant"
+    end
+
     create_class(*fields, &block)
+  end
+
+  def self.constant?(value)
+    value.instance_of?(String) && \
+      !value.empty? && \
+      value.match?(/\A[A-Z]/)
   end
 
   def self.create_class(*fields, &block)
@@ -50,14 +45,12 @@ class Factory
       define_method :initialize do |*args|
         raise ArgumentError, 'factory size differs' if fields.size < args.size
 
-        fields.each_with_index do |field, i|
-          instance_variable_set "@#{field}", args[i]
+        fields.zip(args).each do |field_value|
+          instance_variable_set "@#{field_value[0]}", field_value[1]
         end
       end
 
       define_method :[] do |accessor|
-        check accessor
-
         if accessor.instance_of? Integer
           return instance_variable_get instance_variables[accessor]
         end
@@ -66,8 +59,6 @@ class Factory
       end
 
       define_method :[]= do |accessor, value|
-        check accessor
-
         if accessor.instance_of? Integer
           return instance_variable_set instance_variables[accessor], value
         end
@@ -86,23 +77,15 @@ class Factory
       alias_method :eql?, :==
 
       def each(&block)
-        return to_enum unless block_given?
-
-        to_a.each(&block)
+        values.each(&block)
       end
 
       def each_pair(&block)
-        return to_enum(method: :each_pair) unless block_given?
-
-        to_h.each_pair(&block)
+        members.zip(values).each(&block)
       end
 
-      def dig(key, *keys)
-        return nil unless members.include? key
-
-        return self[key] if keys.empty?
-
-        self[key].dig(*keys)
+      def dig(*keys)
+        keys.inject(self) { |res, key| res[key] if res }
       end
 
       def size
@@ -124,29 +107,7 @@ class Factory
       end
 
       def values_at(*ids)
-        to_a.values_at(*ids)
-      end
-
-      private
-
-      def check(accessor)
-        case accessor
-        when Integer
-
-          if (instance_variables.size - 1) < accessor
-            raise IndexError, "offset #{accessor} is too large \
-                              for factory(size:#{instance_variables.size})"
-          end
-
-        when String, Symbol
-
-          unless instance_variables.include? "@#{accessor}".to_sym
-            raise NameError, "no accessor #{accessor} in factory"
-          end
-
-        else raise TypeError, "no implicit convention of \
-                              #{accessor.class} into Integer"
-        end
+        values.select { |value| ids.include?(values.index(value)) }
       end
 
       class_eval(&block) if block_given?
