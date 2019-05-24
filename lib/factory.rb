@@ -21,7 +21,7 @@ class Factory
   def self.new(*fields, &block)
     identifier, *rest = fields
 
-    if constant?(identifier)
+    if constant?(identifier.strip)
       return const_set(identifier, create_class(*rest, &block))
     end
 
@@ -34,7 +34,7 @@ class Factory
 
   def self.constant?(value)
     value.instance_of?(String) && \
-      !value.strip.empty? && \
+      !value.empty? && \
       value.match?(/\A[A-Z]/)
   end
 
