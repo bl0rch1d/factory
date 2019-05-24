@@ -34,7 +34,6 @@ class Factory
 
   def self.constant?(value)
     value.instance_of?(String) && \
-      !value.strip.empty? && \
       value.strip.match?(/\A[A-Z]/)
   end
 
