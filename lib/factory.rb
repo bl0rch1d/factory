@@ -33,8 +33,7 @@ class Factory
   end
 
   def self.constant?(value)
-    value.instance_of?(String) && \
-      value.strip.match?(/\A[A-Z]/)
+    value.instance_of?(String) && value.match?(/\A[A-Z]/)
   end
 
   def self.create_class(*fields, &block)
